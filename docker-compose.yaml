@@ -1,0 +1,72 @@
+version: "3.7"
+services:
+    nginx:
+        build: nginx
+        container_name: nginx
+        ports:
+            - 80:80
+        volumes:
+          - static_volume:/home/parfumadmin/staticfiles
+          - media_volume:/home/parfumadmin/media
+        depends_on:
+            - django
+    db:
+        image: postgres:12.0-alpine
+        container_name: postgres
+        volumes:
+            - temp_postgres_data:/var/lib/postgresql/data/
+        env_file:
+          - .env.db
+    django:
+        build: django_docker
+#            args:
+#                SRC_PROJECT: '/Users/antongladkih/Documents/python_projects/shop_for_diana/Magazin_site'
+        container_name: django
+#        command: gunicorn Magazin_site.wsgi:application --bind 0.0.0.0:8000
+#        command: python3 ../install_requirements.py
+#        args:
+        environment:
+            REQUIREMENT_FILE_PATH: '/home/parfumadmin/Magazin_site/requirements.txt'
+        command: sh -c "../start.sh && gunicorn Magazin_site.wsgi:application --bind 0.0.0.0:8000"
+        volumes:
+            - '${SRC_PROJECT}:/home/parfumadmin/Magazin_site'
+            - static_volume:/home/parfumadmin/staticfiles
+            - media_volume:/home/parfumadmin/media
+        expose:
+            - 8000
+        working_dir: '/home/parfumadmin/Magazin_site'
+        env_file:
+            - .env
+        depends_on:
+          - db
+          - redis
+        stdin_open: true # docker run -i
+        tty: true        # docker run -t
+    celery:
+        build: django_docker
+        container_name: celery
+        command: sh -c "export PATH=$PATH:/home/parfumadmin/.local/bin && pip install -r /home/parfumadmin/Magazin_site/requirements.txt && celery --app=Magazin_site.celery_app:app -A Magazin_site worker -l debug"
+        volumes:
+            - '${SRC_PROJECT}:/home/parfumadmin/Magazin_site'
+        working_dir: '/home/parfumadmin/Magazin_site'
+        env_file:
+            - .env
+        expose:
+            - 8000
+        depends_on:
+            - django
+            - redis
+        restart: on-failure
+    redis:
+        container_name: redis
+        restart: always
+        image: redis:latest
+        ports:
+            - 6379:6379
+        volumes:
+            - redisdata:/data
+volumes:
+    temp_postgres_data:
+    static_volume:
+    media_volume:
+    redisdata:
