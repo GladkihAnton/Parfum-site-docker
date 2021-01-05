@@ -6,5 +6,5 @@ echo "Finished installing requirements"
 
 
 echo "Collecting static files"
-python3 manage.py collectstatic
+echo yes | python3 manage.py collectstatic
 echo "Finished collecting"
